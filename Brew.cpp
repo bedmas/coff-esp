@@ -36,18 +36,25 @@ void Brew::run( )
 
   while ( 1 )
   {
+    // monitor.checkLever();
 
-    switch ( this->program )
+    // If we have a program running then run the appropriate program..
+    if ( brew.running )
     {
-      case 0:
-        program0();
-        break;
-      case 1:
-        program1();
-        break;
 
-    }
-    
+      switch ( this->program )
+      {
+        case 0:
+          program0();
+          break;
+        case 1:
+          program1();
+          break;
+
+      }
+
+    }    
+
     // digitalWrite(led1, HIGH);
     delay( 200 );
 
@@ -64,6 +71,7 @@ void Brew::start( void )
 
 void Brew::stop( void )
 {
+  display.clearStatus( );
   monitor.turn( PIN_PUMP, M_OFF );
   timer.stop();
   this->running = 0;
@@ -71,7 +79,7 @@ void Brew::stop( void )
 }
 
 // Set which brew program to run.
-uint8_t Brew::setProgram( uint8_t program )
+int Brew::setProgram( int program )
 {
   if ( program >= 0 and program <= 1 )
   {
@@ -81,7 +89,7 @@ uint8_t Brew::setProgram( uint8_t program )
   return this->program;
 }
 
-uint8_t Brew::getProgram( )
+int Brew::getProgram( )
 {
   return this->program;
 }
@@ -89,26 +97,23 @@ uint8_t Brew::getProgram( )
 // First program, run the pump for as long as it takes.
 void Brew::program0( void )
 {
-  monitor.turn( PIN_PUMP, M_ON );
+    display.setStatus( "Running program 0" );
+    monitor.turn( PIN_PUMP, M_ON );
 
 }
 
 
 void Brew::program1( void )
 {
-    if ( brew.running )
-    {
-      if ( timer.seconds() < 3 )
-      {
-        monitor.turn( PIN_PUMP, M_ON );
-      } else if ( timer.seconds() < 7  )
-      {
-        monitor.turn( PIN_PUMP, M_OFF );
-      } else {
-        monitor.turn( PIN_PUMP, M_ON );
-      }
-
-    }
+  if ( timer.seconds() < 3 )
+  {
+    monitor.turn( PIN_PUMP, M_ON );
+  } else if ( timer.seconds() < 7  )
+  {
+    monitor.turn( PIN_PUMP, M_OFF );
+  } else {
+    monitor.turn( PIN_PUMP, M_ON );
+  }
 
 }
 

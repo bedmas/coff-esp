@@ -10,9 +10,13 @@ class Brew {
   private:
 //     TaskHandle_t taskHandler;
     uint8_t running = 0;
-    uint8_t program = 0;
+    int program = 0;
+
 
   public: 
+    uint8_t program_running = 0;
+
+
     Brew( );
 
     void init( void );
@@ -26,8 +30,8 @@ class Brew {
     void stop( void );
  
 
-    uint8_t setProgram( uint8_t );
-    uint8_t getProgram(  );
+    int setProgram( int );
+    int getProgram(  );
 
   
 };

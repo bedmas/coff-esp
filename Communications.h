@@ -21,10 +21,6 @@
 #include "Monitor.h"
 #include "Timer.h"
 
-extern Display display;
-extern Brew brew;
-extern Monitor monitor;
-extern Timer timer;
 
 class Communications {
 
@@ -34,12 +30,18 @@ class Communications {
     char command_string[128];
     uint8_t command_index = 0;
 
+
   public:
+    uint8_t debug_flag = 0;
+
     Communications( void );
     void init( void );
     void monitor( void );
     void runCommand( void );
     void send( String message );
+
+    void debug( String message );
+    void debug( String message, int );
 
     char command( void );
     uint8_t command_value( void );

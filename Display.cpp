@@ -6,6 +6,7 @@
   Maybe use two displays at once using the multiplexer!
 
 */
+extern Communications coms;
 extern Timer timer;
 extern Monitor monitor;
 
@@ -26,6 +27,7 @@ void Display::init( void )
   this->screen.setRotation(2);
   this->screen.fillScreen(D_BACKGROUND);
 
+  this->drawTitle();
   this->drawTimer();
   this->drawIcons();
 }
@@ -34,18 +36,17 @@ void Display::refresh( void )
 {
   if ( this->update > 0 )
   {
-    if ( this->update > 1 )
-    {
-      this->drawTitle();
-      this->drawMessage();
-      this->drawStatus();
-      this->drawIcons();
-      this->update = 0;
-
-    }
-
+    coms.debug( String( "In Display update?") + String( this->update ) );
+    // if ( this->update == D_UPDATE_ALL ) { this->drawTitle(); } 
+    if ( this->update & D_UPDATE_MESSAGE ) { this->drawMessage(); }
+    if ( this->update & D_UPDATE_STATUS ) { this->drawStatus(); }
+    if ( this->update & D_UPDATE_ICONS ) { this->drawIcons(); }
+    this->update = 0;
+    
   }
 
+  // Timer is always outside of the update.  We always updte it when it is running and when
+  // the display has changed to stop the flickering...
   if ( timer.isRunning() && this->last_timer != timer.seconds() )
   {
     this->last_timer = timer.seconds();
@@ -55,10 +56,24 @@ void Display::refresh( void )
 
 }
 
-void Display::setTitle( String value ) { this->title = value; this->update = 2; }
-void Display::setMessage( String value ) { this->message = value; this->update = 2; }
-void Display::setStatus( String value ) { this->status = value; this->update = 2; }
-void Display::setProgram( uint8_t value  ) { this->program = value; this->update = 2; }
+void Display::setTitle( String value ) { this->title = value; this->setUpdate( D_UPDATE_TITLE ); }
+void Display::setMessage( String value ) { this->message = value; this->setUpdate( D_UPDATE_MESSAGE ); }
+void Display::setStatus( String value ) { this->status = value; this->setUpdate( D_UPDATE_STATUS ); }
+void Display::setProgram( uint value  ) { this->program = value; this->setUpdate( D_UPDATE_ICONS ); }
+
+/*
+  Clear the message should be faster if we just draw a rectangle background?
+*/
+void Display::clearMessage( void ) { this->message = ""; this->setUpdate( D_UPDATE_MESSAGE ); }  
+void Display::clearStatus( void ) { this->status = ""; this->setUpdate( D_UPDATE_STATUS ); }  
+
+// void Display::setIcon( int flag, uint8_t status  ) { 
+//   if ( status ) { this->icons = this->icons | flag; }
+//   else { this->icons = this->icons ^ flag; }
+//   this->setUpdate( D_UPDATE_ICONS ); 
+// }
+
+void Display::setUpdate( int flag ) { this->update = this->update | flag;  }   // Combine the flags..
 
 
 /* */
@@ -67,10 +82,10 @@ void Display::drawTitle( )
   this->screen.setTextDatum(TC_DATUM);
   this->screen.setTextFont(4); // Set the text font to font number 2
   this->screen.setTextSize(1);
-  this->screen.setTextColor(TFT_WHITE, D_BACKGROUND); // Set the text color to white with black background
+  this->screen.setTextColor(D_TITLE_COLOUR, D_BACKGROUND); // Set the text color to white with black background
 
   // Draw a string at position (100, 100) on the screen
-  this->screen.drawString(this->title, D_WIDTH/2, 5 );
+  this->screen.drawString( this->title, D_WIDTH/2, 5 );
 
   this->screen.setTextDatum(TL_DATUM); // Default.
 
@@ -84,7 +99,7 @@ void Display::drawMessage( )
   this->screen.setTextColor(TFT_WHITE, D_BACKGROUND); // Set the text color to white with black background
 
   // Draw a string at position (100, 100) on the screen
-  this->screen.drawString(this->message, 10, 30);
+  this->screen.drawString(this->message + "                            ", 10, 30);
 
 }
 
@@ -96,7 +111,7 @@ void Display::drawStatus( )
   this->screen.setTextColor(TFT_WHITE, D_BACKGROUND); // Set the text color to white with black background
 
   // Draw a string at position (100, 100) on the screen
-  this->screen.drawString(this->status, 10, 106);
+  this->screen.drawString(this->status + "                            ", 10, 106);
 
 }
 
@@ -105,27 +120,28 @@ void Display::drawIcons( )
 
   this->screen.setTextFont(2); // Set the text font to font number 2
   this->screen.setTextSize(1);
-  this->screen.setTextColor(TFT_WHITE, D_BACKGROUND); // Set the text color to white with black background
 
-  this->drawIcon( 1, String("P")+ String(this->program), 5 );
+  this->drawIcon( M_ON, String("P")+ String(this->program), 5 );
 
-  this->drawIcon( monitor.boiler_status, "B", 20 );
-  this->drawIcon( monitor.solinoid_status, "S", 35 );
-  this->drawIcon( monitor.pump_status, "P", 50 );
+  this->drawIcon( monitor.status( M_STATUS_BOILER) , "B", 30 );
+  this->drawIcon( monitor.status( M_STATUS_SOLINOID ), "S", 45 );
+  this->drawIcon( monitor.status( M_STATUS_PUMP ) , "P", 60 );
   
-  this->drawIcon( monitor.water_status, "W", 80 );
-  this->drawIcon( monitor.reservoir_status, "R", 95 );
+  this->drawIcon( monitor.status( M_STATUS_WATER ), "W", 85 );
+  this->drawIcon( monitor.status( M_STATUS_RESERVOIR ), "R", 100 );
 
 }
 
 void Display::drawIcon( uint8_t status, String icon, uint8_t x )
 {
     // Draw a string at position (100, 100) on the screen
-  if ( status )
+  if ( status == M_ON )
   {
+    this->screen.setTextColor(D_ICON_ON, D_BACKGROUND); // Set the text color to white with black background
     this->screen.drawString( icon, x, 144 );
   } else {
-    this->screen.drawString( "  ", x, 144 );
+    this->screen.setTextColor(D_ICON_OFF, D_BACKGROUND); // Set the text color to white with black background
+    this->screen.drawString( icon, x, 144 );
   }
 
 }
@@ -174,38 +190,6 @@ uint8_t Display::getBrightness( void )
 }
 
 
-
-void Display::boilerIcon( uint8_t status )
-{
-  this->boiler_icon = status;
-  this->update = 2;
-}
-
-void Display::solinoidIcon( uint8_t status )
-{
-  this->solinoid_icon = status;
-  this->update = 2;
-}
-
-void Display::pumpIcon( uint8_t status )
-{
-  this->pump_icon = status;
-  this->update = 2;
-}
-
-void Display::waterIcon( uint8_t status )
-{
-  this->water_icon = status;
-  this->update = 2;
-}
-
-void Display::reservoirIcon( uint8_t status )
-{
-  this->reservoir_icon = status;
-  this->update = 2;
-}
-
-
 void Display::test( void )
 {
   while ( 1 )
@@ -215,35 +199,35 @@ void Display::test( void )
 
     this->setMessage( "Starting");
 
-    this->boilerIcon( D_OFF );
-    this->solinoidIcon( D_OFF );
-    this->pumpIcon( D_OFF );
+    // this->setIcon( D_ICON_BOILER, D_OFF );
+    // this->setIcon( D_ICON_SOLINOID, D_OFF );
+    // this->setIcon( D_ICON_PUMP, D_OFF );
 
-    this->waterIcon( D_OFF );
-    this->reservoirIcon( D_OFF );
-    delay( 2000 );
+    // this->setIcon( D_ICON_WATER, D_OFF );
+    // this->setIcon( D_ICON_RESERVOIR, D_OFF );
+    // delay( 2000 );
 
-    this->boilerIcon( D_ON );
-    delay( 2000 );
-    this->solinoidIcon( D_ON );
-    delay( 2000 );
-    this->pumpIcon( D_ON );
-    delay( 2000 );
+    // this->setIcon( D_ICON_BOILER, D_ON );
+    // delay( 2000 );
+    // this->setIcon( D_ICON_SOLINOID,  D_ON );
+    // delay( 2000 );
+    // this->setIcon( D_ICON_PUMP, D_ON );
+    // delay( 2000 );
 
-    this->waterIcon( D_ON );
-    delay( 2000 );
-    this->reservoirIcon( D_ON );
-    delay( 2000 );
+    // this->setIcon( D_ICON_WATER, D_ON );
+    // delay( 2000 );
+    // this->setIcon( D_ICON_RESERVOIR, D_ON );
+    // delay( 2000 );
 
     this->setMessage( "message....");
-    this->setStatus( "waiting for 2 seconds              " );
+    this->setStatus( "waiting for 2 seconds" );
     delay( 2000 );
 
-    this->setMessage( "                                  ");
-    this->setStatus( "another 2 seconds                  " );
+    this->clearMessage( );
+    this->setStatus( "another 2 seconds" );
     delay( 2000 );
 
-    this->setStatus( "timer                               " );
+    this->setStatus( "timer" );
     timer.stop();
 
     delay( 2000 );

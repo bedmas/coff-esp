@@ -1,8 +1,14 @@
 #include "Communications.h"
 #include <cmath>
 
+extern Display display;
+extern Brew brew;
+extern Monitor monitor;
+extern Timer timer;
+
 Communications::Communications()
 {
+
 }
 
 void Communications::init()
@@ -47,6 +53,37 @@ void Communications::send( String message )
     this->SerialBT.println( message );
   }
 }
+
+// If avaliable sne a message...
+void Communications::debug( String message )
+{
+  if ( this->debug_flag )
+  {
+    if ( this->SerialBT.available() )
+    {
+      this->SerialBT.println( message );
+    } else {
+      Serial.println( message );
+    }
+    
+  }
+}
+
+// If avaliable sne a message...
+void Communications::debug( String message, int level )
+{
+  if ( level > 0 )
+  {
+    if ( this->SerialBT.available() )
+    {
+      this->SerialBT.println( message );
+    } else {
+      Serial.println( message );
+    }
+  }
+}
+
+
 
 
 

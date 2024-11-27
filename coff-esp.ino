@@ -27,13 +27,13 @@ void setup() {
 
   coms.init();
 
-  display.init();
   display.setTitle( "Coff-ESP" );
+  display.init();
 
 //  test_display();  // Lauch a task to update test out the display.
 
   launch_monitor();
-//   launch_brewer();
+  launch_brewer();
 
   delay( 1000 );
   
