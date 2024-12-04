@@ -15,6 +15,13 @@ Display::Display( )
 
 }
 
+Display::Display( String title )
+{
+ this->setTitle( title );
+ this->init();
+
+}
+
 void Display::init( void )
 {
   // Set up the ld display brightness...
@@ -30,13 +37,14 @@ void Display::init( void )
   this->drawTitle();
   this->drawTimer();
   this->drawIcons();
+
+
 }
 
 void Display::refresh( void ) 
 {
   if ( this->update > 0 )
   {
-    coms.debug( String( "In Display update?") + String( this->update ) );
     // if ( this->update == D_UPDATE_ALL ) { this->drawTitle(); } 
     if ( this->update & D_UPDATE_MESSAGE ) { this->drawMessage(); }
     if ( this->update & D_UPDATE_STATUS ) { this->drawStatus(); }
@@ -44,6 +52,8 @@ void Display::refresh( void )
     this->update = 0;
     
   }
+
+  this->drawDateTime();
 
   // Timer is always outside of the update.  We always updte it when it is running and when
   // the display has changed to stop the flickering...
@@ -161,13 +171,59 @@ void Display::drawTimer( )
 
 }
 
-uint8_t Display::updateBrightness( uint8_t amount )
+void Display::drawDateTime()
+{
+
+  // Get the local time... 
+  if( !getLocalTime( &this->timeinfo, 3000) )
+  {
+    Serial.println("Failed to obtain time");
+    // Reconnect, and reinitialize the display.
+    if ( !coms.ntpTimeSet) { coms.ntpConnect(); this->init(); }
+
+    return;
+  }
+
+  // Only need to update every minute.
+  if ( this->timeinfo.tm_min == this->last_min )
+  {
+    return;
+  }
+  
+  if ( timeinfo.tm_year == 0 ) { coms.ntpConnect(); this->init(); }
+
+  #ifdef DEBUG  
+  Serial.println(&this->timeinfo, "%A, %B %d %Y %H:%M:%S");
+  #endif
+
+  char output[20] = "";
+  sprintf( output, "%04d-%02d-%02d %02d:%02d", 
+      1900+this->timeinfo.tm_year, 
+      this->timeinfo.tm_mon, 
+      this->timeinfo.tm_mday, 
+      this->timeinfo.tm_hour, 
+      this->timeinfo.tm_min );
+
+  this->screen.setTextDatum(TC_DATUM);
+  this->screen.setTextFont(2); // Set the text font to font number 2
+  this->screen.setTextSize(1);
+  this->screen.setTextColor(TFT_WHITE, D_BACKGROUND); // Set the text color to white with black background
+
+  // Draw a string at position (100, 100) on the screen
+  this->screen.drawString( output, D_WIDTH/2, 124 );
+
+  this->screen.setTextDatum(TL_DATUM); // Default.
+  
+
+}
+
+int Display::updateBrightness( int amount )
 {
   this->setBrightness( this->brightness + amount );
   return this->brightness;
 }
 
-uint8_t Display::setBrightness( uint8_t amount )
+int Display::setBrightness( int amount )
 {
   this->brightness = amount;
   if ( this->brightness <= 0 )
@@ -184,7 +240,7 @@ uint8_t Display::setBrightness( uint8_t amount )
 
 }
 
-uint8_t Display::getBrightness( void )
+int Display::getBrightness( void )
 {
   return this->brightness;
 }

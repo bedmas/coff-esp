@@ -37,33 +37,41 @@
 class Monitor {
 
   private:
-    uint8_t debug = 0;
 
   public: 
     Monitor( );
 
     uint device_status = 0;
-    uint8_t empty = 0;
+    bool empty = 0;
 
     void init( void );
     void test( void );
     void run( void );
 
-    uint8_t checkBoiler( void );
-    uint8_t checkReservoir( void );
-    uint8_t checkLever( void );
+    bool turnPumpOn( void );
+    bool turnPumpOff( void );
 
-    uint8_t status( int );
-    uint8_t setStatus( int, uint8_t );
+    bool turnBoilerOn( void );
+    bool turnBoilerOff( void );
+
+    bool turnSolinoidOn( void);
+    bool turnSolinoidOff( void );
+
+    bool checkBoiler( void );
+    bool checkReservoir( void );
+    bool checkLever( void );
+
+    bool status( int );
+    bool setStatus( int, bool );
 
     void turn_off( void );
-    void turn( int , uint8_t );
+    void turn( int , bool );
 
-    uint8_t switchDevice( int , int , uint8_t  );
+    bool switchDevice( int , int , bool  );
 
     void fill_boiler( void );
   
-    uint8_t threshold( int );
+    bool threshold( int );
 };
 
 

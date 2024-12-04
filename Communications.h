@@ -1,6 +1,11 @@
 #ifndef BEDMAS_COMS
 #define BEDMAS_COMS
 
+// Wifi Time
+#include <WiFi.h>
+#include "time.h"
+
+
 #include "BluetoothSerial.h"
 
 // Check if Bluetooth is available
@@ -14,7 +19,7 @@
 #endif
 
 #define COMMAND_END 13  // return is the indicator for ending a command from blue tooth.
-
+#define TIME_ZONE -5    // est TIME ZONE
 
 #include "Display.h"
 #include "Brew.h"
@@ -25,26 +30,29 @@
 class Communications {
 
   private:
+
     BluetoothSerial SerialBT;
     String device_name = "coff-esp";
     char command_string[128];
-    uint8_t command_index = 0;
+    int command_index = 0;
+
 
 
   public:
-    uint8_t debug_flag = 0;
+    bool ntpTimeSet = 0;
 
     Communications( void );
     void init( void );
-    void monitor( void );
+    void run( void );
     void runCommand( void );
     void send( String message );
 
-    void debug( String message );
-    void debug( String message, int );
-
     char command( void );
-    uint8_t command_value( void );
+    int command_value( void );
+
+    void printLocalTime( void );
+
+    void ntpConnect(void);
 
 };
 

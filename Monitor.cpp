@@ -96,9 +96,6 @@ void Monitor::test( void )
       this->turn( PIN_BOILER, M_OFF );
       delay( 5000 );
 
-
-
-
       display.setStatus( "Boiler ON.");
       this->turn( PIN_BOILER, M_ON );
       delay( 5000 );
@@ -158,34 +155,63 @@ void Monitor::run(  )
       } else {
         this->fill_boiler();
       }
+
     } else {
       display.setMessage( "normal operations" );
-      coms.debug( "Normal operations ");
       this->turn( PIN_BOILER, M_ON );
 
       if ( ! brew.program_running )
       {
-        coms.debug( "program not running turning everything off." );
-        this->turn( PIN_SOLINOID, M_OFF );
-        this->turn( PIN_PUMP, M_OFF );
+        Serial.println( "Program not running." );
+        // this->turn( PIN_PUMP, M_OFF );
+        // this->turn( PIN_SOLINOID, M_OFF );
+
+      } else {
+        Serial.println( "Running program." );
+
       }
 
     }
 
+    monitor.checkLever();
+
+    #ifdef DEBUG
+    /* Inspect our own high water mark on entering the task. */
+    UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
+    Serial.printf( "High water mark: %d\n", uxHighWaterMark );
+    #endif
+
+
 
     // digitalWrite(led1, HIGH);
-    delay( 100 );
+    delay( 200 );
 
   } 
  
 }
 
-uint8_t Monitor::checkBoiler( void )
+bool Monitor::turnPumpOn() { 
+  Serial.println( "turn pump on" );
+  monitor.turn( PIN_PUMP, M_ON ); 
+  return 1; 
+}
+bool Monitor::turnPumpOff() { 
+  Serial.println( "turn pump off" );
+  monitor.turn( PIN_PUMP, M_OFF ); 
+  return 1; 
+}
+
+bool Monitor::turnBoilerOn() { monitor.turn( PIN_BOILER, M_ON ); return 1; }
+bool Monitor::turnBoilerOff() { monitor.turn( PIN_BOILER, M_OFF ); return 1; }
+
+bool Monitor::turnSolinoidOn() { monitor.turn( PIN_SOLINOID, M_ON ); return 1; }
+bool Monitor::turnSolinoidOff() { monitor.turn( PIN_SOLINOID, M_OFF ); return 1; }
+
+bool Monitor::checkBoiler( void )
 {
   int analog = analogRead( PIN_BOILER_SENSOR );
-  coms.debug( String( "Boiler analog read?" ) + String( analog ) );   
 
-  uint8_t status = this->threshold( analog );
+  bool status = this->threshold( analog );
   // Serial.printf( "Boiler water value %d\n", read_value );
   if ( status != this->status( M_STATUS_WATER )  )
   {
@@ -195,15 +221,15 @@ uint8_t Monitor::checkBoiler( void )
 
   }
 
-  return (uint8_t)this->status( M_STATUS_WATER );
+  return (bool)this->status( M_STATUS_WATER );
 
 }
 
-uint8_t Monitor::checkReservoir( void )
+bool Monitor::checkReservoir( void )
 {
   int analog = analogRead( PIN_RESERVOIR_SENSOR );
-  if ( this->debug ) { Serial.printf( "Reservoir Anolog: %d\n", analog ); }
-  uint8_t status = this->threshold( analog );
+  
+  bool status = this->threshold( analog );
   // Serial.printf( "ReservoiR value %d\n", read_value );
   if ( status != this->status( M_STATUS_RESERVOIR ) )
   {
@@ -213,13 +239,13 @@ uint8_t Monitor::checkReservoir( void )
     display.setUpdate( D_UPDATE_ICONS );
 
   }
-  return (uint8_t)this->status( M_STATUS_RESERVOIR );
+  return (bool)this->status( M_STATUS_RESERVOIR );
 }
 
-uint8_t Monitor::checkLever( void )
+bool Monitor::checkLever( void )
 {
   // The values are all backwards with the pullup resistors.
-  uint8_t read_value = !digitalRead( PIN_LEVER );
+  bool read_value = !digitalRead( PIN_LEVER );
   if ( read_value != this->status( M_STATUS_LEVER )  )
   {
     // The state has changed do something.
@@ -229,12 +255,11 @@ uint8_t Monitor::checkLever( void )
     {
       brew.start();
     } else {
-      this->turn( PIN_PUMP, M_OFF );
       brew.stop();
     }
     
   }
-  return (uint8_t)this->status( M_STATUS_LEVER );
+  return (bool)this->status( M_STATUS_LEVER );
 }
 
 void Monitor::fill_boiler()
@@ -252,7 +277,10 @@ void Monitor::fill_boiler()
   delay( 500 );
   while ( this->checkBoiler() == M_EMPTY )
   {
-    if ( this->debug ) { Serial.printf( "Fill boiler loop index: %d\n", index++ ); }
+    #ifdef DEBUG
+    Serial.printf( "Fill boiler loop index: %d\n", index++ );
+    #endif
+    
     if ( this->checkReservoir() == M_EMPTY )
     {
       this->turn_off();
@@ -274,7 +302,7 @@ void Monitor::fill_boiler()
 
 }
 
-uint8_t Monitor::setStatus( int device, uint8_t status )
+bool Monitor::setStatus( int device, bool status )
 {
 
   // If we are trying to set it to low then we need to xor else we or it.
@@ -296,7 +324,7 @@ uint8_t Monitor::setStatus( int device, uint8_t status )
 }
 
 
-uint8_t Monitor::status( int device )
+bool Monitor::status( int device )
 {
   return ( this->device_status & device );
 
@@ -312,22 +340,19 @@ void Monitor::turn_off( void )
 }
 
 
-void Monitor::turn( int device, uint8_t status )
+void Monitor::turn( int device, bool status )
 {
   if ( device == PIN_PUMP )
   {
       this->setStatus( M_STATUS_PUMP, status );
-      coms.debug( String( "Pump status ") + String( status ) );
 
   } else if ( device == PIN_SOLINOID )
   {
       this->setStatus( M_STATUS_SOLINOID, status );
-      coms.debug( String( "Solinoid status ") + String( status ) );
 
   } else if ( device == PIN_BOILER )
   {
       this->setStatus( M_STATUS_BOILER, status); 
-      coms.debug( String( "Boiler status ") + String( status ), 1 );
   }
 
   // Set the icons to update on the display
@@ -342,7 +367,7 @@ void Monitor::turn( int device, uint8_t status )
 }
 
 // We may want to do mor with this....
-uint8_t Monitor::threshold( int value )
+bool Monitor::threshold( int value )
 {
   return ( value < 500 );
 }

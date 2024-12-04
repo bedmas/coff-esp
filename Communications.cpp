@@ -1,6 +1,8 @@
 #include "Communications.h"
 #include <cmath>
 
+//#define DEBUG 1
+
 extern Display display;
 extern Brew brew;
 extern Monitor monitor;
@@ -13,19 +15,23 @@ Communications::Communications()
 
 void Communications::init()
 {
-
   this->SerialBT.begin(device_name);  //Bluetooth device name
   //SerialBT.deleteAllBondedDevices(); // Uncomment this to delete paired devices; Must be called after begin
+  
+  #ifdef DEBUG
   Serial.printf("The device with name \"%s\" is started.\nNow you can pair it with Bluetooth!\n", device_name.c_str());
-
+  #endif
 
 }
 
-void Communications::monitor()
+void Communications::run()
 {
 
+  // Look for the date and time...
+  // if ( !this->ntpTimeSet ) { this->ntpConnect(); }
+
   if ( this->SerialBT.available() ) {
-    uint8_t read = this->SerialBT.read();
+    char read = this->SerialBT.read();
     // Serial.write( read );
 
     if ( read == COMMAND_END )
@@ -40,10 +46,11 @@ void Communications::monitor()
       this->command_string[ this->command_index++ ] = read;
 
     }
-
-    
   }
 }
+
+
+
 
 // If avaliable sne a message...
 void Communications::send( String message )
@@ -53,37 +60,6 @@ void Communications::send( String message )
     this->SerialBT.println( message );
   }
 }
-
-// If avaliable sne a message...
-void Communications::debug( String message )
-{
-  if ( this->debug_flag )
-  {
-    if ( this->SerialBT.available() )
-    {
-      this->SerialBT.println( message );
-    } else {
-      Serial.println( message );
-    }
-    
-  }
-}
-
-// If avaliable sne a message...
-void Communications::debug( String message, int level )
-{
-  if ( level > 0 )
-  {
-    if ( this->SerialBT.available() )
-    {
-      this->SerialBT.println( message );
-    } else {
-      Serial.println( message );
-    }
-  }
-}
-
-
 
 
 
@@ -140,16 +116,122 @@ char Communications::command( void )
 }
 
 // Return the command value
-uint8_t Communications::command_value( void )
+int Communications::command_value( void )
 {
-  uint8_t sum = 0;
-  for( uint8_t i = 1; i < this->command_index; i++ )
-  {
-    if ( this->command_string[i] >= 48 && this->command_string[i] >= 48  )
-    {
-      sum += (this->command_string[i]-48)*pow(10,this->command_index-(i+1) );
-    }
-  }
-  return sum;
+  char *value = &this->command_string[1];
+  return String( value ).toInt();
+
 }
+
+void Communications::ntpConnect()
+{
+
+  const char* ssid               = "bedmas";
+  const char* password           = "uncooldaddio42";
+  const char* ntpServer          = "pool.ntp.org";
+  const int   daylightOffset_sec =  3600;
+  const long  gmtOffset_sec      = daylightOffset_sec * TIME_ZONE;
+
+  // // Connect to Wi-Fi
+  #ifdef DEBUG
+  Serial.print("Connecting to ");
+  Serial.println( ssid);
+  // Serial.println( password);
+  #endif
+
+  Serial.print("[WiFi] Attemping to connect to WiFi: ");
+  Serial.println(ssid);
+  WiFi.begin( ssid, password);
+  delay(1000);
+
+  int count = 0;
+
+  while ( 1 )
+  {
+    int status = WiFi.status();
+
+    #ifdef DEBUG
+    switch ( status ) {
+      case WL_NO_SSID_AVAIL: Serial.println("[WiFi] SSID not found"); break;
+      case WL_CONNECT_FAILED:
+        Serial.print("[WiFi] Failed - WiFi not connected! Reason: ");
+        break;
+      case WL_CONNECTION_LOST: Serial.println("[WiFi] Connection was lost"); break;
+      case WL_SCAN_COMPLETED:  Serial.println("[WiFi] Scan is completed"); break;
+      case WL_DISCONNECTED:    Serial.println("[WiFi] WiFi is disconnected"); break;
+      case WL_CONNECTED:
+        // Serial.println("[WiFi] WiFi is connected!");
+        // Serial.print("[WiFi] IP address: ");
+        // Serial.println(WiFi.localIP());
+        break;
+      default:
+        Serial.print("[WiFi] WiFi Status: ");
+        Serial.println(WiFi.status());
+        break;
+    }
+    #endif
+
+    if ( status == WL_CONNECTED ) 
+    { 
+      Serial.println("[WiFi] WiFi is connected!");
+      Serial.print("[WiFi] IP address: ");
+      Serial.println(WiFi.localIP());
+
+      configTime( gmtOffset_sec, daylightOffset_sec, ntpServer );
+
+      // Once we have connected then stop trying....
+      this->ntpTimeSet = 1;
+
+      this->printLocalTime();
+
+      // //disconnect WiFi as it's no longer needed
+      WiFi.disconnect(true);
+      WiFi.mode(WIFI_OFF);
+      break;
+    }
+
+    if ( count++ > 10 ) { break; }
+    delay(200);
+
+  }
+
+
+}
+
+void Communications::printLocalTime()
+{
+  struct tm timeinfo;
+  if( !getLocalTime(&timeinfo) ){
+    Serial.println("Failed to obtain time");
+    return;
+  }
+  Serial.println(&timeinfo, "%A, %B %d %Y %H:%M:%S");
+  delay(5000);
+  Serial.print("Day of week: ");
+  Serial.println(&timeinfo, "%A");
+  Serial.print("Month: ");
+  Serial.println(&timeinfo, "%B");
+  Serial.print("Day of Month: ");
+  Serial.println(&timeinfo, "%d");
+  Serial.print("Year: ");
+  Serial.println(&timeinfo, "%Y");
+  Serial.print("Hour: ");
+  Serial.println(&timeinfo, "%H");
+  Serial.print("Hour (12 hour format): ");
+  Serial.println(&timeinfo, "%I");
+  Serial.print("Minute: ");
+  Serial.println(&timeinfo, "%M");
+  Serial.print("Second: ");
+  Serial.println(&timeinfo, "%S");
+
+  Serial.println("Time variables");
+  char timeHour[3];
+  strftime(timeHour,3, "%H", &timeinfo);
+  Serial.println(timeHour);
+  char timeWeekDay[10];
+  strftime(timeWeekDay,10, "%A", &timeinfo);
+  Serial.println(timeWeekDay);
+  Serial.println();
+}
+
 

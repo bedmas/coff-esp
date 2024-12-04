@@ -4,7 +4,6 @@
 
 */
 
-
 #include "Brew.h"
 #include "Brew.h"
 #include "Display.h"
@@ -55,6 +54,12 @@ void Brew::run( )
 
     }    
 
+    #ifdef DEBUG
+    /* Inspect our own high water mark on entering the task. */
+    UBaseType_t uxHighWaterMark = uxTaskGetStackHighWaterMark( NULL );
+    Serial.printf( "High water mark: %d\n", uxHighWaterMark );
+    #endif
+
     // digitalWrite(led1, HIGH);
     delay( 200 );
 
@@ -64,16 +69,26 @@ void Brew::run( )
 
 void Brew::start( void )
 {
-  timer.start();      
-  this->running = 1;
+  #ifdef DEBUG
+  Serial.printf( "Starting\n" );
+  #endif
 
+  timer.start();      
+  display.clearStatus( );
+  this->running = 1;
+  
 }
 
 void Brew::stop( void )
 {
-  display.clearStatus( );
-  monitor.turn( PIN_PUMP, M_OFF );
+  #ifdef DEBUG
+  Serial.printf( "Stop\n" );
+  #endif
+  
   timer.stop();
+  display.clearStatus( );
+  monitor.turnPumpOff();
+  
   this->running = 0;
 
 }
@@ -89,7 +104,7 @@ int Brew::setProgram( int program )
   return this->program;
 }
 
-int Brew::getProgram( )
+int Brew::getProgram()
 {
   return this->program;
 }
@@ -97,8 +112,8 @@ int Brew::getProgram( )
 // First program, run the pump for as long as it takes.
 void Brew::program0( void )
 {
-    display.setStatus( "Running program 0" );
-    monitor.turn( PIN_PUMP, M_ON );
+  display.setStatus( "Running program 0" );
+  monitor.turnPumpOn( );
 
 }
 
@@ -107,12 +122,12 @@ void Brew::program1( void )
 {
   if ( timer.seconds() < 3 )
   {
-    monitor.turn( PIN_PUMP, M_ON );
+    monitor.turnPumpOn();
   } else if ( timer.seconds() < 7  )
   {
-    monitor.turn( PIN_PUMP, M_OFF );
+    monitor.turnPumpOff();
   } else {
-    monitor.turn( PIN_PUMP, M_ON );
+    monitor.turnPumpOn();
   }
 
 }

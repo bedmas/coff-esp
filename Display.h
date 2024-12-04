@@ -51,6 +51,8 @@ class Display {
 
     uint program = 0;
     
+    int last_min = 0;
+
     int icons = 0b0000000000000000;    // Everything off.
     /* uint8_t boiler_icon = 0;
     uint8_t solinoid_icon = 0;
@@ -59,12 +61,14 @@ class Display {
     uint8_t water_icon = 0;
     uint8_t reservoir_icon = 0;
     */
+    struct tm timeinfo;
 
   public: 
 
     int update = D_UPDATE_ALL;   // 0 dont update, 1 everything, 2 update status, 3 update message, 4 update icons
 
     Display( void );
+    Display( String );
     void init( void );
     void test( void );
     void refresh( void );
@@ -87,6 +91,7 @@ class Display {
     void drawMessage( void );
     void drawStatus( void );
     void drawTimer( void );
+    void drawDateTime( void );
 
     void clearMessage( void );
     void clearStatus( void );
@@ -94,9 +99,9 @@ class Display {
     void drawIcons();
     void drawIcon( uint8_t, String, uint8_t );
 
-    uint8_t updateBrightness( uint8_t );
-    uint8_t setBrightness( uint8_t );
-    uint8_t getBrightness( void );
+    int updateBrightness( int );
+    int setBrightness( int );
+    int getBrightness( void );
     
 
 };
